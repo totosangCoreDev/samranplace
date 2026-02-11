@@ -25,20 +25,23 @@
 
         <div id="admin-panel" class="admin-only bg-indigo-900 text-white p-6 rounded-3xl mb-10 shadow-xl">
             <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold">🛠️ ระบบจัดการแอดมิน</h2>
-                <button onclick="logout()" class="text-sm bg-red-500 px-3 py-1 rounded-lg">ออกจากระบบ</button>
+                <h2 class="text-2xl font-bold text-yellow-400">🛠️ ระบบจัดการแอดมิน</h2>
+                <div class="flex items-center gap-3">
+                    <span id="display-admin-name" class="text-sm font-medium"></span>
+                    <button onclick="logout()" class="text-sm bg-red-500 hover:bg-red-600 px-3 py-1 rounded-lg transition-colors">ออกจากระบบ</button>
+                </div>
             </div>
-            <div class="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <input type="text" id="new_id" placeholder="รหัสห้อง (Room ID)" class="p-2 rounded text-black">
-                <input type="text" id="new_name" placeholder="ชื่อห้อง" class="p-2 rounded text-black">
-                <input type="number" id="new_price" placeholder="ราคา" class="p-2 rounded text-black">
-                <input type="file" id="new_file" class="text-sm">
-                <button onclick="submitNewRoom()" id="addBtn" class="bg-green-500 hover:bg-green-600 p-2 rounded font-bold col-span-1 md:col-span-4">เพิ่มห้องพักใหม่ลงระบบ</button>
+            <div class="grid grid-cols-1 md:grid-cols-4 gap-4 bg-white/10 p-4 rounded-2xl">
+                <input type="text" id="new_id" placeholder="รหัสห้อง (Room ID)" class="p-3 rounded-xl text-black border-none outline-none">
+                <input type="text" id="new_name" placeholder="ชื่อห้อง" class="p-3 rounded-xl text-black border-none outline-none">
+                <input type="number" id="new_price" placeholder="ราคา" class="p-3 rounded-xl text-black border-none outline-none">
+                <input type="file" id="new_file" class="text-sm self-center">
+                <button onclick="submitNewRoom()" id="addBtn" class="bg-green-500 hover:bg-green-600 p-3 rounded-xl font-bold col-span-1 md:col-span-4 transition-all active:scale-95 shadow-lg">เพิ่มห้องพักใหม่ลงระบบ Google Sheet</button>
             </div>
         </div>
 
-        <div id="room-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 mb-12">
-            <p class="col-span-full text-center py-10">กำลังโหลดข้อมูลห้องพัก...</p>
+        <div id="room-container" class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-6 mb-12 text-center py-10">
+            กำลังโหลดข้อมูลห้องพักจากฐานข้อมูล...
         </div>
 
         <div id="booking-form" class="hidden bg-white rounded-3xl shadow-2xl border border-gray-100 overflow-hidden transition-all animate-in fade-in zoom-in duration-300 mb-10">
@@ -85,9 +88,7 @@
     <script>
         let roomData = [];
         let imgIndexes = [];
-        let bookingInterval;
 
-        // 1. ฟังก์ชันดึงข้อมูลจาก Sheet เมื่อเปิดหน้าเว็บ
         function loadRooms() {
             google.script.run.withSuccessHandler(data => {
                 roomData = data;
@@ -98,7 +99,7 @@
         const fixDriveUrl = (url) => {
             if (url.includes('drive.google.com')) {
                 const id = url.split('/d/')[1]?.split('/')[0] || url.split('id=')[1]?.split('&')[0];
-                return `https://lh3.googleusercontent.com/d/${id}`;
+                return `https://lh3.googleusercontent.com/u/0/d/${id}`;
             }
             return url;
         };
@@ -106,16 +107,15 @@
         function renderRooms() {
             const container = document.getElementById('room-container');
             if (roomData.length === 0) {
-                container.innerHTML = `<p class="col-span-full text-center">ไม่มีข้อมูลห้องพัก</p>`;
+                container.innerHTML = `<p class="col-span-full text-center">ยังไม่มีข้อมูลห้องพักในระบบ</p>`;
                 return;
             }
-            
             imgIndexes = Array(roomData.length).fill(0);
             container.innerHTML = roomData.map((room, i) => {
                 const isBooked = room.status === "ไม่ว่าง";
                 return `
                 <div class="bg-white rounded-3xl overflow-hidden shadow-sm hover:shadow-xl transition-all border border-gray-100 relative">
-                    ${isBooked ? '<div class="absolute top-2 left-2 z-10 bg-red-500 text-white text-xs px-2 py-1 rounded-full">จองแล้ว</div>' : ''}
+                    ${isBooked ? '<div class="absolute top-2 left-2 z-10 bg-red-500 text-white text-[10px] px-2 py-1 rounded-full font-bold">จองแล้ว</div>' : ''}
                     <div class="relative h-48 overflow-hidden">
                         <img id="img-room-${room.id}" src="${fixDriveUrl(room.imgs[0])}" class="w-full h-full object-cover transition-opacity duration-1000 ${isBooked ? 'grayscale' : ''}">
                     </div>
@@ -123,12 +123,11 @@
                         <h3 class="font-bold text-gray-800 text-lg">${room.name} (${room.id})</h3>
                         <p class="text-indigo-600 font-bold mb-3">${room.price}.- / คืน</p>
                         <button onclick="openBooking('${room.id}')" ${isBooked ? 'disabled' : ''} 
-                            class="w-full py-2 rounded-xl font-bold transition-colors ${isBooked ? 'bg-gray-300 text-gray-500' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white'}">
-                            ${isBooked ? 'ห้องไม่ว่าง' : 'จองห้องนี้'}
+                            class="w-full py-2 rounded-xl font-bold transition-colors ${isBooked ? 'bg-gray-300 text-gray-500 cursor-not-allowed' : 'bg-indigo-50 text-indigo-600 hover:bg-indigo-600 hover:text-white'}">
+                            ${isBooked ? 'ห้องเต็ม' : 'จองห้องนี้'}
                         </button>
                     </div>
-                </div>
-            `}).join('');
+                </div>`}).join('');
             startSlideshows();
         }
 
@@ -150,29 +149,32 @@
             }, 4000);
         }
 
-        // --- ส่วนแอดมิน ---
+        // --- แก้ไขระบบล็อกอินแอดมิน ---
         function openLoginModal() {
-            const id = prompt("Admin ID:");
-            const pass = prompt("Password:");
-            if (id && pass) {
-                google.script.run.withSuccessHandler(res => {
-                    if (res.success) {
-                        alert("ยินดีต้อนรับคุณ " + res.name);
-                        document.getElementById('admin-panel').style.display = 'block';
-                    } else {
-                        alert("ID หรือ Password ไม่ถูกต้อง!");
-                    }
-                }).adminLogin(id, pass);
-            }
+            const id = prompt("กรุณาระบุ Admin ID:");
+            if (!id) return;
+            const pass = prompt("กรุณาระบุรหัสผ่าน:");
+            if (!pass) return;
+
+            google.script.run.withSuccessHandler(res => {
+                if (res.success) {
+                    alert("ยินดีต้อนรับคุณ " + res.name);
+                    document.getElementById('admin-panel').style.display = 'block';
+                    document.getElementById('display-admin-name').innerText = "สวัสดี, " + res.name;
+                    document.getElementById('admin-info').innerHTML = '<span class="text-indigo-600 font-bold">Admin Mode</span>';
+                } else {
+                    alert("ID หรือรหัสผ่านไม่ถูกต้อง! กรุณาตรวจสอบใน Google Sheet หน้า Admin");
+                }
+            }).adminLogin(id, pass);
         }
 
         function submitNewRoom() {
             const btn = document.getElementById('addBtn');
             const fileInput = document.getElementById('new_file');
-            if (!fileInput.files[0]) return alert("กรุณาเลือกรูปภาพ");
+            if (!fileInput.files[0]) return alert("กรุณาเลือกรูปภาพห้องพัก");
             
             btn.disabled = true;
-            btn.innerText = "กำลังประมวลผล...";
+            btn.innerText = "กำลังอัปโหลดภาพและบันทึกข้อมูล...";
 
             const reader = new FileReader();
             reader.onload = function(e) {
@@ -185,7 +187,7 @@
 
                 google.script.run.withSuccessHandler(res => {
                     if (res.success) {
-                        alert("เพิ่มห้องพักสำเร็จ!");
+                        alert("เพิ่มห้องพักสำเร็จ ข้อมูลแสดงบนหน้าเว็บแล้ว");
                         location.reload();
                     } else {
                         alert("เกิดข้อผิดพลาด: " + res.error);
@@ -199,18 +201,16 @@
 
         function logout() { location.reload(); }
 
-        // --- ฟังก์ชันการจองเดิม ---
+        // --- ฟังก์ชันการจอง ---
         function openBooking(roomId) {
             const room = roomData.find(r => r.id.toString() === roomId.toString());
             document.getElementById('booking-form').classList.remove('hidden');
-            document.getElementById('selected-room-name').innerText = `${room.name} (รหัส ${room.id})`;
+            document.getElementById('selected-room-name').innerText = room.name;
             document.getElementById('room-price-info').innerText = room.price;
             document.getElementById('roomNumberInput').value = room.id;
             document.getElementById('roomBasePrice').value = room.price;
+            document.getElementById('room-image-display').src = fixDriveUrl(room.imgs[0]);
             
-            const modalImg = document.getElementById('room-image-display');
-            modalImg.src = fixDriveUrl(room.imgs[0]);
-
             const today = new Date();
             const tomorrow = new Date();
             tomorrow.setDate(today.getDate() + 1);
@@ -234,11 +234,10 @@
 
         function handleFormSubmit(e) {
             e.preventDefault();
-            alert("จองสำเร็จ! ข้อมูลการจองได้ถูกส่งไปยังระบบเรียบร้อยแล้ว");
+            alert("จองสำเร็จ! (ตัวอย่างระบบ: สลิปจะถูกเก็บใน Google Drive ในขั้นตอนพัฒนาถัดไป)");
             closeForm();
         }
 
-        // เริ่มโหลดข้อมูล
         loadRooms();
     </script>
 </body>
